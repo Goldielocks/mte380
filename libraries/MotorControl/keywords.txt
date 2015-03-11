@@ -1,0 +1,24 @@
+#######################################
+# Syntax Coloring Map Ultrasonic
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+Motor	KEYWORD1
+MotorControl	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+forward	KEYWORD2
+reverse	KEYWORD2
+turnLeft	KEYWORD2
+turnRight	KEYWORD2
+fullStop	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
