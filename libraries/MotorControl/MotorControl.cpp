@@ -22,12 +22,32 @@ Motor::Motor(int pin1, int pin2)
 
 void Motor::motorForward( double throttle )
 {
+	if(throttle > 1)
+	{
+		throttle = 1;
+	}
+
+	if(throttle < 0)
+	{
+		throttle = 0;
+	}
+
 	digitalWrite(m_pin1, LOW);
 	analogWrite(m_pin2, 255 * throttle);
 }
 
 void Motor::motorReverse( double throttle )
 {
+	if(throttle > 1)
+	{
+		throttle = 1;
+	}
+
+	if(throttle < 0)
+	{
+		throttle = 0;
+	}
+
 	digitalWrite(m_pin2, LOW);
 	analogWrite(m_pin1, 255 * throttle);
 }
@@ -91,6 +111,9 @@ void MotorControl::turnRight( )
 
 void MotorControl::fullStop()
 {
+	throttleLeft(FORWARD, 0.1);
+	throttleRight(FORWARD, 0.1);
+	delay(10);
 	throttleLeft(FORWARD, 0);
 	throttleRight(FORWARD, 0);
 }
