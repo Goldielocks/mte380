@@ -14,7 +14,8 @@
 #define FRONTRIGHT_ECHO_PIN     30
 
 #define NUMBER_BUFFERS 1
-#define BUFFER_SIZE 10
+#define BUFFER_SIZE 2
+#define BUFFER2_SIZE 10
 
 #define BUFFER_01      0
 
@@ -106,18 +107,16 @@ void loop()
    rightDistance = rightSonic.convert(microsec, Ultrasonic::CM);
    Serial.println(rightDistance);
    */
-  /*rightDistance = analogRead(HORIZONTAL_IR_PIN);
-   Serial.println(rightDistance); */
-  initialPosition();
-  findRamp();
+  //rightDistance = analogRead(HORIZONTAL_IR_PIN);
+  //updateUltrasonics();
+  // Serial.println(rightDistance); 
+  //initialPosition();
+  //findRamp();
   //climbRamp();
   //findBase();
-  //findLarry();
-  //getLarry();
-  while(1){
-    delay(500);
-  }
-
+  findLarry();
+  getLarry();
+  while(1){delay(10);}
 }               
 
 void initialPosition()
@@ -131,10 +130,10 @@ void initialPosition()
       motorControl.forward(0.5);
       delay(10);
     }
-
     motorControl.reverse(1);
     delay(15);
     motorControl.fullStop();
+
     moveArm(180);
     //TODO: go forward
     faceLeft();
@@ -145,6 +144,7 @@ void initialPosition()
     switch(currentDirection)
     {
     case 1:
+
       faceRight();
       break;
     case 2:
@@ -178,14 +178,16 @@ void findRamp()
     //TODO: If right margin is wrong, perform S turn
 
     float error = rightDistance - 8.5;
-    float percentError = error/5;
+    float percentError = error/10;
     if(percentError > 0.2)
-    {percentError = 0.2;}
+    {
+      percentError = 0.2;
+    }
     motorControl.forward(0.7 + percentError, 0.7 - percentError);
     Serial.print(rightDistance);
     Serial.print('\t');
     Serial.println(hDistance);
-    
+
     delay(20);
   }
   while(hDistance < 100);
@@ -245,70 +247,117 @@ void climbRamp()
   } 
   moveArm(150);
   motorControl.forward(1);
-  delay(500);  
+  delay(25);  
   faceLeft();
   state++; 
 }
 
 void findBase()
 {
+  Serial.println("Enter findbase");
   moveArm(180);
-  int baseFound = 0;
-  while(baseFound == 0)//TODO check vertical distance
-  {
-    updateUltrasonics();
-    if(leftDistance < 130 || rightDistance < 130 )
+  for(int i = 0; i < 10; i++)
     {
-      motorControl.forward(1);
-      delay(300);
+      updateUltrasonics();
+      updateIR();
+      delay(50);
+    }
+  motorControl.forward(0.7);
+  int baseFound = 0;
+  do
+  {
+    
+    updateUltrasonics();
+    updateIR();
+
+    
+    Serial.print(leftDistance);
+    Serial.print('\t');
+    Serial.print(rightDistance);
+    Serial.print('\t');
+    Serial.print(vDistance);
+    Serial.print('\t');
+    Serial.println(hDistance);
+    if(leftDistance < 100 || rightDistance < 100 || vDistance > 100 )
+    {
+
+      Serial.println("base found");
       motorControl.fullStop();
 
-      baseFound == 1;
-
-      if(leftDistance < 130)
+      if(leftDistance < 100)
       { 
-        faceRight();
+        faceLeft();
       }
-      if(rightDistance < 130)
+      if(rightDistance < 100)
       {
         faceRight();
       }
+      delay(250);
+      while(vDistance < 100)
+      {
+        updateIR();
+        motorControl.forward(0.7);
+        Serial.print(vDistance);
+        Serial.print('\t');
+        Serial.println(hDistance);
+      }
+      baseFound = 1;
+      delay(15);
 
-      float error = leftDistance - rightDistance;
-      float percentError = CORRECTION_GAIN * 2 * error / (leftDistance + rightDistance);
-      motorControl.forward(1 - percentError, 1 + percentError);
-
-      motorControl.fullStop();
     }
 
-    delay(50);
   }
-
-  motorControl.forward(1);
+  while(baseFound == 0 );//TODO check vertical distance
+    motorControl.fullStop();
   state++;
 }
 
 void findLarry()
 {
-  int larryFound = 0;
-  while( larryFound == 0)
+  faceLeft();
+  delay(250);
+  
+  currentDirection = currentDirection % 4;
+  do
   {
-    faceLeft();
-  }
-  delay(50);
-  //state++;
+    while(updateUltrasonics() == 0)
+      {delay(10);}
+    motorControl.reverse(0.2);
+  }while( rightDistance < 45);
+  unsigned long startTime = millis();
+  motorControl.fullStop();
+  do
+  {
+    while(updateUltrasonics() == 0)
+      {delay(10);}
+    motorControl.forward(0.2);
+  }while(rightDistance >45);
+  do
+  {
+    while(updateUltrasonics() == 0)
+      {delay(10);}
+    motorControl.forward(0.2);
+  }while(rightDistance < 45);
+  unsigned long averageTime = (millis() - startTime)/2;
+  motorControl.fullStop();
+  motorControl.reverse(0.2);
+  delay(averageTime - 120);
+  motorControl.forward(0.2);
+  delay(100);
+  motorControl.fullStop();
+
+  faceRight();
+  delay(250);  
 }
 
 void getLarry()
 {
-  moveArm(180);
-  motorControl.reverse(0.3);
-  delay(200);
-  motorControl.fullStop();
-  moveArm(150);
+  moveArm(80);
   motorControl.forward(0.3);
-  delay(200);
+  delay(2000);
   motorControl.fullStop();
+  moveArm(180);
+  moveArm(90);
   moveArm(180);
   moveArm(90);
   delay(50);
@@ -362,10 +411,10 @@ void updateIR()
   h = 0;
   v = 0;
 
-  float hBuff[BUFFER_SIZE];
-  float vBuff[BUFFER_SIZE];
+  float hBuff[BUFFER2_SIZE];
+  float vBuff[BUFFER2_SIZE];
 
-  for(int i = 0; i < BUFFER_SIZE; i++)
+  for(int i = 0; i < BUFFER2_SIZE; i++)
   {
     hBuff[i] = analogRead(HORIZONTAL_IR_PIN);
     vBuff[i] = analogRead(VERTICAL_IR_PIN); 
@@ -376,19 +425,19 @@ void updateIR()
     delay(10);
   }
   //Serial.println();
-  h = h/BUFFER_SIZE;
-  v = v/BUFFER_SIZE;
+  h = h/BUFFER2_SIZE;
+  v = v/BUFFER2_SIZE;
 
 
-  for(int i = 0; i < BUFFER_SIZE; i++)
+  for(int i = 0; i < BUFFER2_SIZE; i++)
   {
     hStDev += pow(hBuff[i] - h, 2);
     vStDev += pow(vBuff[i] - v, 2);
   }
 
 
-  hStDev = sqrt(hStDev/BUFFER_SIZE);
-  vStDev = sqrt(vStDev/BUFFER_SIZE);
+  hStDev = sqrt(hStDev/BUFFER2_SIZE);
+  vStDev = sqrt(vStDev/BUFFER2_SIZE);
 
 
   //Serial.print(h);
@@ -405,47 +454,13 @@ void updateIR()
 
 }
 
-void updateUltrasonics()
+int updateUltrasonics()
 {
   float leftStDev, rightStDev, left, right;
   long leftusec, rightusec;
 
   switch(state)
   {
-  case 0:;
-  case 1: 
-    /*    leftusec = frontLeftSonic.timing();
-     left = frontLeftSonic.convert(leftusec, Ultrasonic::CM);
-     leftStDev = frontLeftSonic.unbiasedStdDev(left, BUFFER_01);
-     delay(10);
-     rightusec = frontRightSonic.timing();
-     right = frontRightSonic.convert(rightusec, Ultrasonic::CM);
-     rightStDev = frontRightSonic.unbiasedStdDev(right, BUFFER_01);
-     
-     if(rightStDev < 10 && leftStDev < 10)
-     {
-     rightDistance = right;
-     leftDistance = left;
-     }
-     break;*/
-    //find the ramp
-
-    //detect the peak
-  case 3:    
-    leftusec = leftSonic.timing();
-    left = leftSonic.convert(leftusec, Ultrasonic::CM);
-    leftStDev = leftSonic.unbiasedStdDev(left, BUFFER_01);
-    delay(10);
-    rightusec = rightSonic.timing();
-    right = rightSonic.convert(rightusec, Ultrasonic::CM);
-    rightStDev = rightSonic.unbiasedStdDev(right, BUFFER_01);
-
-    if(rightStDev < 10 && leftStDev < 10)
-    {
-      rightDistance = right;
-      leftDistance = left;
-    }
-    break;
     //detect the base
   case 2: //using right placeholder for the cliff because... why not
     rightusec = cliffSonic.timing(); 
@@ -455,12 +470,53 @@ void updateUltrasonics()
     if(rightStDev < 10)
     {
       cliffDistance = right;
+      return 1;
     }
-    break;
-  case 4:;
-  case 5:;
-    //detect the base edge      
+    return 0;
+    //    case 4:;
+    //    case 5:;
+    //
+    //    case 0:;
+    //    case 1: 
+    //      /*    leftusec = frontLeftSonic.timing();
+    //       left = frontLeftSonic.convert(leftusec, Ultrasonic::CM);
+    //       leftStDev = frontLeftSonic.unbiasedStdDev(left, BUFFER_01);
+    //       delay(10);
+    //       rightusec = frontRightSonic.timing();
+    //       right = frontRightSonic.convert(rightusec, Ultrasonic::CM);
+    //       rightStDev = frontRightSonic.unbiasedStdDev(right, BUFFER_01);
+    //       
+    //       if(rightStDev < 10 && leftStDev < 10)
+    //       {
+    //       rightDistance = right;
+    //       leftDistance = left;
+    //       }
+    //       break;*/
+    //      //find the ramp
+    //
+    //      //detect the peak
+    //    case 3:;
+  default:  
+    leftusec = leftSonic.timing();
+    left = leftSonic.convert(leftusec, Ultrasonic::CM);
+    leftStDev = leftSonic.unbiasedStdDev(left, BUFFER_01);
+    delay(10);
+    rightusec = rightSonic.timing();
+    right = rightSonic.convert(rightusec, Ultrasonic::CM);
+    rightStDev = rightSonic.unbiasedStdDev(right, BUFFER_01);
+
+    if(rightStDev < 30 && leftStDev < 30)
+    {
+      rightDistance = right;
+      leftDistance = left;
+      return 1;
+    }
+    return 0;
   }
 }
+
+
+
+
 
 
